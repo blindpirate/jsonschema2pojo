@@ -52,15 +52,14 @@ public class ArrayRule implements Rule<JPackage, JClass> {
      * the resulting Java type is {@link List}. The schema given by "items" will
      * decide the generic type of the collection.</p>
      *
-     * <p>If the "items" property requires newly generated types, then the type
+     * If the "items" property requires newly generated types, then the type
      * name will be the singular version of the nodeName (unless overridden by
      * the javaType property) e.g. 
      * <pre>
      *  "fooBars" : {"type":"array", "uniqueItems":"true", "items":{type:"object"}}
      *  ==&gt;
-     *  {@code Set<FooBar> getFooBars(); }
+     *  {@code Set[FooBar] getFooBars(); }
      * </pre>
-     * </p>
      *
      * @param nodeName
      *            the name of the property which has type "array"

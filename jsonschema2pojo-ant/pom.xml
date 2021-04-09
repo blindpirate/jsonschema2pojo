@@ -4,8 +4,8 @@
 
     <parent>
         <artifactId>jsonschema2pojo</artifactId>
-        <groupId>org.jsonschema2pojo</groupId>
-        <version>1.1.0</version>
+        <groupId>com.github.blindpirate</groupId>
+        <version>1.1.0.4</version>
     </parent>
 
     <artifactId>jsonschema2pojo-ant</artifactId>
@@ -14,7 +14,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jsonschema2pojo</groupId>
+            <groupId>com.github.blindpirate</groupId>
             <artifactId>jsonschema2pojo-core</artifactId>
             <version>${project.version}</version>
         </dependency>

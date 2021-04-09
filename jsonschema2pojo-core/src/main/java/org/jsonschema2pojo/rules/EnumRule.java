@@ -211,7 +211,6 @@ public class EnumRule implements Rule<JClassContainer, JType> {
 
     /**
      * Builds the effective definition of an enumeration is based on what schema elements are provided.
-     * <p/>
      * This function determines which method it should delegate creating of the definition to:
      *
      * For "enum" handled by {@link #buildEnumDefinitionWithNoExtensions(String, JsonNode, JsonNode, JType)}

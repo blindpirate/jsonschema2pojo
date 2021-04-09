@@ -35,6 +35,8 @@ class JsonSchemaPluginSpec {
     try {
       BuildLauncher launcher = connection.newBuild()
       launcher.forTasks("build")
+      launcher.standardError = System.err
+      launcher.standardOutput = System.out
       launcher.run()
     } finally {
       connection.close()

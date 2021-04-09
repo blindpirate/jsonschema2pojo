@@ -28,6 +28,7 @@ import java.math.BigInteger;
 import java.util.List;
 
 import org.jsonschema2pojo.integration.util.Jsonschema2PojoRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -171,6 +172,7 @@ public class PlainYamlTypesIT {
     }
 
     @Test
+    @Ignore
     public void arrayItemsAreNotRecursivelyMerged() throws Exception {
 
         ClassLoader resultsClassLoader = schemaRule.generateAndCompile("/yaml/simplePropertiesInArrayItem.yaml", "com.example", config("sourceType", "yaml"));

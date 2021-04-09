@@ -47,7 +47,7 @@ public interface GenerationConfig {
    *
    * @return whether to include json type information. Commonly used to support polymorphic type deserialization.
    *
-   * @see <a href="Jackson Polymorphic Deserialization">https://github.com/FasterXML/jackson-docs/wiki/JacksonPolymorphicDeserialization</a>
+   * @see <a href="https://github.com/FasterXML/jackson-docs/wiki/JacksonPolymorphicDeserialization">Jackson Polymorphic Deserialization</a>
    *
    */
   boolean isIncludeTypeInfo();
@@ -198,7 +198,6 @@ public interface GenerationConfig {
    * Gets the 'inclusionLevel' option for Jackson serializer.
    *
    * @return Level of inclusion to set in the generated Java types.
-   *         <p>
    *         Supported values
    *         <ul>
    *         <li><code>ALWAYS</code></li>
@@ -208,7 +207,6 @@ public interface GenerationConfig {
    *         <li><code>NON_NULL</code></li>
    *         <li><code>USE_DEFAULTS</code></li>
    *         </ul>
-   *         </p>
    *
    * @see InclusionLevel
    */

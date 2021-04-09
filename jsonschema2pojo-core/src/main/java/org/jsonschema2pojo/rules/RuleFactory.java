@@ -35,6 +35,9 @@ import com.sun.codemodel.JFieldVar;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * Provides factory/creation methods for the code generation rules.
  */
@@ -46,6 +49,7 @@ public class RuleFactory {
     private GenerationConfig generationConfig;
     private Annotator annotator;
     private SchemaStore schemaStore;
+    private final Map<String, Integer> typeNameToOccurrence = new HashMap<>();
 
     /**
      * Create a new rule factory with the given generation config options.
@@ -124,7 +128,7 @@ public class RuleFactory {
      * @return a schema rule that can handle the "object" declaration.
      */
     public Rule<JPackage, JType> getObjectRule() {
-        return new ObjectRule(this, new ParcelableHelper(), reflectionHelper);
+        return new ObjectRule(this, new ParcelableHelper(), reflectionHelper, typeNameToOccurrence);
     }
 
     /**

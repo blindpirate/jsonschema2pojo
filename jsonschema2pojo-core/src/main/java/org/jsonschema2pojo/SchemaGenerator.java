@@ -138,6 +138,12 @@ public class SchemaGenerator {
                 } else if (targetValue.isArray() && updateValue.isArray()) {
                     // Both values are arrays: concatenate them to be merged later
                     ((ArrayNode) targetValue).addAll((ArrayNode) updateValue);
+                } else if ((targetValue.isTextual() && updateValue.isNumber())) {
+                    // one of them is text, use String.
+                    targetNode.set(fieldName, targetValue);
+                } else if ((updateNode.isTextual() && targetValue.isNumber())) {
+                    // one of them is text, use String.
+                    targetNode.set(fieldName, updateValue);
                 } else {
                     // Values have different types: use the one from the update node
                     targetNode.set(fieldName, updateValue);

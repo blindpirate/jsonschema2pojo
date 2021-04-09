@@ -16,30 +16,8 @@
 
 package org.jsonschema2pojo.rules;
 
-import static org.apache.commons.lang3.StringUtils.*;
-import static org.jsonschema2pojo.rules.PrimitiveTypes.*;
-import static org.jsonschema2pojo.util.TypeUtil.*;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-
-import org.jsonschema2pojo.AnnotationStyle;
-import org.jsonschema2pojo.Annotator;
-import org.jsonschema2pojo.Schema;
-import org.jsonschema2pojo.exception.ClassAlreadyExistsException;
-import org.jsonschema2pojo.exception.GenerationException;
-import org.jsonschema2pojo.util.ParcelableHelper;
-import org.jsonschema2pojo.util.ReflectionHelper;
-import org.jsonschema2pojo.util.SerializableHelper;
-import org.jsonschema2pojo.util.AnnotationHelper;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.sun.codemodel.ClassType;
-import com.sun.codemodel.JAnnotationUse;
 import com.sun.codemodel.JBlock;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JClassAlreadyExistsException;
@@ -55,6 +33,30 @@ import com.sun.codemodel.JOp;
 import com.sun.codemodel.JPackage;
 import com.sun.codemodel.JType;
 import com.sun.codemodel.JVar;
+import org.jsonschema2pojo.AnnotationStyle;
+import org.jsonschema2pojo.Annotator;
+import org.jsonschema2pojo.Schema;
+import org.jsonschema2pojo.exception.ClassAlreadyExistsException;
+import org.jsonschema2pojo.exception.GenerationException;
+import org.jsonschema2pojo.rules.Rule;
+import org.jsonschema2pojo.rules.RuleFactory;
+import org.jsonschema2pojo.util.AnnotationHelper;
+import org.jsonschema2pojo.util.ParcelableHelper;
+import org.jsonschema2pojo.util.ReflectionHelper;
+import org.jsonschema2pojo.util.SerializableHelper;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import static org.apache.commons.lang3.StringUtils.substringAfter;
+import static org.apache.commons.lang3.StringUtils.substringBefore;
+import static org.jsonschema2pojo.rules.PrimitiveTypes.isPrimitive;
+import static org.jsonschema2pojo.rules.PrimitiveTypes.primitiveType;
+import static org.jsonschema2pojo.util.TypeUtil.resolveType;
 
 /**
  * Applies the generation steps required for schemas of type "object".
@@ -68,11 +70,13 @@ public class ObjectRule implements Rule<JPackage, JType> {
     private final RuleFactory ruleFactory;
     private final ReflectionHelper reflectionHelper;
     private final ParcelableHelper parcelableHelper;
+    private final Map<String, Integer> typeNameToOccurrence;
 
-    protected ObjectRule(RuleFactory ruleFactory, ParcelableHelper parcelableHelper, ReflectionHelper reflectionHelper) {
+    protected ObjectRule(RuleFactory ruleFactory, ParcelableHelper parcelableHelper, ReflectionHelper reflectionHelper, Map<String, Integer> typeNameToOccurrence) {
         this.ruleFactory = ruleFactory;
         this.parcelableHelper = parcelableHelper;
         this.reflectionHelper = reflectionHelper;
+        this.typeNameToOccurrence = typeNameToOccurrence;
     }
 
     /**
@@ -110,7 +114,7 @@ public class ObjectRule implements Rule<JPackage, JType> {
         }
 
         // Creates the class definition for the builder
-        if(ruleFactory.getGenerationConfig().isGenerateBuilders() && ruleFactory.getGenerationConfig().isUseInnerClassBuilders()){
+        if (ruleFactory.getGenerationConfig().isGenerateBuilders() && ruleFactory.getGenerationConfig().isUseInnerClassBuilders()) {
             ruleFactory.getBuilderRule().apply(nodeName, node, parent, jclass, schema);
         }
 
@@ -127,9 +131,9 @@ public class ObjectRule implements Rule<JPackage, JType> {
         if (node.has("required")) {
             ruleFactory.getRequiredArrayRule().apply(nodeName, node.get("required"), node, jclass, schema);
         }
-       
+
         if (ruleFactory.getGenerationConfig().isIncludeGeneratedAnnotation()) {
-        	AnnotationHelper.addGeneratedAnnotation(jclass);
+            AnnotationHelper.addGeneratedAnnotation(jclass);
         }
         if (ruleFactory.getGenerationConfig().isIncludeToString()) {
             addToString(jclass);
@@ -172,7 +176,6 @@ public class ObjectRule implements Rule<JPackage, JType> {
     }
 
 
-
     /**
      * Creates a new Java class that will be generated.
      *
@@ -193,6 +196,16 @@ public class ObjectRule implements Rule<JPackage, JType> {
      *             current map of classes to be generated.
      */
     private JDefinedClass createClass(String nodeName, JsonNode node, JPackage _package) throws ClassAlreadyExistsException {
+
+        String newNodeName = nodeName;
+
+        if (typeNameToOccurrence.containsKey(nodeName)) {
+            newNodeName += typeNameToOccurrence.get(nodeName);
+        }
+
+        typeNameToOccurrence.put(nodeName, typeNameToOccurrence.getOrDefault(nodeName, 1) + 1);
+
+        nodeName = newNodeName;
 
         JDefinedClass newType;
 
@@ -224,11 +237,6 @@ public class ObjectRule implements Rule<JPackage, JType> {
                 }
 
                 int index = fqn.lastIndexOf(".") + 1;
-                if (index == 0) { //Actually not a fully qualified name
-                    fqn = _package.name() + "." + fqn;
-                    index = fqn.lastIndexOf(".") + 1;
-                }
-
                 if (index >= 0 && index < fqn.length()) {
                     fqn = fqn.substring(0, index) + ruleFactory.getGenerationConfig().getClassNamePrefix() + fqn.substring(index) + ruleFactory.getGenerationConfig().getClassNameSuffix();
                 }
@@ -242,7 +250,12 @@ public class ObjectRule implements Rule<JPackage, JType> {
                 if (usePolymorphicDeserialization) {
                     newType = _package._class(JMod.PUBLIC, ruleFactory.getNameHelper().getUniqueClassName(nodeName, node, _package), ClassType.CLASS);
                 } else {
-                    newType = _package._class(ruleFactory.getNameHelper().getUniqueClassName(nodeName, node, _package));
+                    // support generating inner classes
+                    if (_package.classes().hasNext()) {
+                        newType = _package.classes().next()._class(JMod.PUBLIC | JMod.STATIC, ruleFactory.getNameHelper().getUniqueClassName(nodeName, node, _package));
+                    } else {
+                        newType = _package._class(ruleFactory.getNameHelper().getUniqueClassName(nodeName, node, _package));
+                    }
                 }
             }
         } catch (JClassAlreadyExistsException e) {
@@ -296,16 +309,16 @@ public class ObjectRule implements Rule<JPackage, JType> {
 
             superToStringInnerConditional._then().add(
                     sb.invoke("append")
-                    .arg(superString)
-                    .arg(contentStart.plus(JExpr.lit(1)))
-                    .arg(contentEnd));
+                            .arg(superString)
+                            .arg(contentStart.plus(JExpr.lit(1)))
+                            .arg(contentEnd));
 
             // Otherwise, just append super.toString()
             superToStringInnerConditional._else().add(sb.invoke("append").arg(superString));
 
             // Append a comma if needed
             body._if(sb.invoke("length").gt(baseLength))
-            ._then().add(sb.invoke("append").arg(JExpr.lit(',')));
+                    ._then().add(sb.invoke("append").arg(JExpr.lit(',')));
         }
 
         // For each included instance field, add to the StringBuilder in the field=value format
@@ -331,10 +344,10 @@ public class ObjectRule implements Rule<JPackage, JType> {
                                 JExpr.refthis(fieldVar.name()).eq(JExpr._null()),
                                 JExpr.lit("<null>"),
                                 jclass.owner().ref(Arrays.class).staticInvoke("toString")
-                                .arg(JExpr.refthis(fieldVar.name()))
-                                .invoke("replace").arg(JExpr.lit('[')).arg(JExpr.lit('{'))
-                                .invoke("replace").arg(JExpr.lit(']')).arg(JExpr.lit('}'))
-                                .invoke("replace").arg(JExpr.lit(", ")).arg(JExpr.lit(",")))));
+                                        .arg(JExpr.refthis(fieldVar.name()))
+                                        .invoke("replace").arg(JExpr.lit('[')).arg(JExpr.lit('{'))
+                                        .invoke("replace").arg(JExpr.lit(']')).arg(JExpr.lit('}'))
+                                        .invoke("replace").arg(JExpr.lit(", ")).arg(JExpr.lit(",")))));
             } else {
                 body.add(sb.invoke("append")
                         .arg(JOp.cond(
@@ -349,12 +362,12 @@ public class ObjectRule implements Rule<JPackage, JType> {
         // Add the trailer
         JConditional trailerConditional = body._if(
                 sb.invoke("charAt").arg(sb.invoke("length").minus(JExpr.lit(1)))
-                .eq(JExpr.lit(',')));
+                        .eq(JExpr.lit(',')));
 
         trailerConditional._then().add(
                 sb.invoke("setCharAt")
-                .arg(sb.invoke("length").minus(JExpr.lit(1)))
-                .arg(JExpr.lit(']')));
+                        .arg(sb.invoke("length").minus(JExpr.lit(1)))
+                        .arg(JExpr.lit(']')));
 
         trailerConditional._else().add(
                 sb.invoke("append").arg(JExpr.lit(']')));
@@ -502,7 +515,7 @@ public class ObjectRule implements Rule<JPackage, JType> {
             } else {
                 fieldEquals = thisFieldRef.eq(otherFieldRef).cor(
                         thisFieldRef.ne(JExpr._null())
-                        .cand(thisFieldRef.invoke("equals").arg(otherFieldRef)));
+                                .cand(thisFieldRef.invoke("equals").arg(otherFieldRef)));
             }
 
             // Chain the equality of this field with the previous comparisons
@@ -519,17 +532,4 @@ public class ObjectRule implements Rule<JPackage, JType> {
             jclass._implements(resolveType(jclass._package(), i.asText()));
         }
     }
-
-    private boolean usesPolymorphicDeserialization(JsonNode node) {
-
-        AnnotationStyle annotationStyle = ruleFactory.getGenerationConfig().getAnnotationStyle();
-
-        if (annotationStyle == AnnotationStyle.JACKSON
-                || annotationStyle == AnnotationStyle.JACKSON2) {
-            return ruleFactory.getGenerationConfig().isIncludeTypeInfo() || node.has("deserializationClassProperty");
-        }
-
-        return false;
-    }
-
 }
